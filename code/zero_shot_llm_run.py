@@ -20,7 +20,7 @@ MODEL_NAME = "deepseek-r1:70b"   # | llama3.3:70b , gemma3:27b, deepseek-r1:70b,
 
 INPUT_FILE      = "data/user_texts_concatenated.csv"          # columns: main_user (or User), Monologue
 PROFILES_FILE   = "data/user_labels_gt1.csv" # ground truth risk_level (used ONLY for scoring)
-TEST_USERS_FILE = "data/test_users_500.xlsx" # index main_user = the 500 test users
+TEST_USERS_FILE = "data/judge_scores_nine_criteria.xlsx" # index main_user = the 500 test users
 OUTPUT_DIR      = "data/zero_shot"
 
 OUTPUT_FILE  = os.path.join(OUTPUT_DIR, f"direct_{MODEL_KEY}.xlsx")

@@ -13,7 +13,7 @@ from metrics_utils import GT1_MAP, evaluate
 
 INPUT_FILE      = "data/user_texts_concatenated.csv"
 PROFILES_FILE   = "data/user_labels_gt1.csv"
-TEST_USERS_FILE = "data/test_users_500.xlsx"
+TEST_USERS_FILE = "data/judge_scores_nine_criteria.xlsx"
 OUTPUT_DIR      = "results"
 SEED = 42
 

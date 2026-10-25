@@ -20,7 +20,8 @@ References cited by the original R package:
    weights induced by type-2 linguistic quantifiers", Fuzzy Sets and Systems
    159(24), 3281-3296, 2008.
 
-The source R package supplied by the user is GPL-licensed. This port is a research-oriented translation of that supplied implementation.
+The original R package (Type1OWA 1.0, by Francisco Mata) is GPL-licensed;
+this Python port is a research-oriented translation of it and is distributed under the same licence terms.
 """
 
 from __future__ import annotations

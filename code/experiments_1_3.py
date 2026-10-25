@@ -6,7 +6,7 @@ Experiments 1-3
          + Kendall tau, paired bootstrap differences, sensitivity to the Yager exponent
   Exp 3  Leave-one-judge-out robustness
 
-INPUT : user_scores_all_models_nine-criteria.xlsx  (written by Step 2; columns A1_<judge> ... A9_<judge>)
+INPUT : judge_scores_nine_criteria.xlsx  (written by Step 2; columns A1_<judge> ... A9_<judge>)
         2_User_profiles_extended 1.csv (user_labels_gt1.xlsx)            (external label GT1 = risk_level ) 
         type1owa_zhou.py                          
 OUTPUT: experiments_1_3.xlsx 

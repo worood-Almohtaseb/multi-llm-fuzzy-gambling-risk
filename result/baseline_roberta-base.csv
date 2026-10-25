@@ -1,2 +1,0 @@
-method,n,spearman,auc_none_vs_high,auc_nonelow_vs_modhigh,accuracy,macro_F1,none_vs_high_precision,none_vs_high_recall,none_vs_high_F1,nonelow_vs_modhigh_precision,nonelow_vs_modhigh_recall,nonelow_vs_modhigh_F1,best_val_macro_F1,epochs,lr,max_len
-roberta-base (fine-tuned),500,"0.684 [0.624, 0.741]","0.941 [0.914, 0.966]","0.848 [0.812, 0.884]","0.600 [0.560, 0.642]","0.596 [0.552, 0.638]","0.740 [0.673, 0.804]","1.000 [1.000, 1.000]","0.850 [0.804, 0.891]","0.713 [0.666, 0.757]","0.992 [0.980, 1.000]","0.830 [0.797, 0.860]",0.794,4,2e-05,512

@@ -10,7 +10,7 @@ Install once:  pip install torch transformers scikit-learn scipy pandas openpyxl
 Run:           python bert_baseline.py
 """
 import os, random, time
-os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")   # let unsupported MPS ops run on the CPU
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 import numpy as np, pandas as pd
 import torch
 from torch.utils.data import DataLoader
@@ -19,13 +19,12 @@ from sklearn.metrics import f1_score
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, get_linear_schedule_with_warmup
 from metrics_utils import GT1_MAP, evaluate
 
-# ================================ CONFIG ================================
-INPUT_FILE      = r"/Users/dr.worood/Desktop/4oct/combined_by_user.csv"            # columns: main_user (or User), Monologue
-PROFILES_FILE   = r"/Users/dr.worood/Desktop/paper2data/2_User_profiles_extended 1.csv"   # ground-truth risk_level
-TEST_USERS_FILE = r"/Users/dr.worood/Desktop/12Oct/result/t1owa_results.xlsx"      # index main_user = the 500 test users
-OUTPUT_DIR      = r"/Users/dr.worood/Desktop/12Oct/result/supervised"
+INPUT_FILE      = "data/user_texts_concatenated.csv"
+PROFILES_FILE   = "data/user_labels_gt1.xlsx"
+TEST_USERS_FILE = "data/judge_scores_nine_criteria.xlsx"
+OUTPUT_DIR      = "results"
 
-MODEL_NAME = "roberta-base"      # or "bert-base-uncased"
+MODEL_NAME = "roberta-base"
 MAX_LEN    = 512
 EPOCHS     = 4
 BATCH      = 16
@@ -33,9 +32,8 @@ LR         = 2e-5
 WARMUP     = 0.1
 VAL_FRAC   = 0.10
 SEED       = 42
-FORCE_DEVICE = None             # None = auto; set "cpu" to test whether the Apple GPU (mps) causes NaN
-LIMIT      = None                # set e.g. 64 for a quick pilot (uses only that many train users)
-# ========================================================================
+FORCE_DEVICE = None
+LIMIT      = None
 
 def set_seed(s):
     random.seed(s); np.random.seed(s); torch.manual_seed(s); torch.cuda.manual_seed_all(s)
@@ -50,7 +48,6 @@ tag = MODEL_NAME.replace("/", "_")
 OUT_METRICS = os.path.join(OUTPUT_DIR, f"baseline_{tag}.csv")
 OUT_PREDS   = os.path.join(OUTPUT_DIR, f"preds_{tag}.csv")
 
-# ---------------- data (same loading as the other scripts) ----------------
 def read_any(path):
     return pd.read_csv(path) if path.lower().endswith(".csv") else pd.read_excel(path)
 
@@ -66,7 +63,7 @@ prof["User"] = prof["User"].astype(str).str.strip()
 prof["y"] = prof["risk_level"].astype(str).str.strip().str.lower().map(GT1_MAP)
 df = txt.merge(prof[["User", "y"]], on="User").dropna(subset=["y"]); df["y"] = df["y"].astype(int)
 
-test_ids = set(pd.read_excel(TEST_USERS_FILE, index_col="main_user").index.astype(str).str.strip())
+test_ids = set(pd.read_excel(TEST_USERS_FILE, index_col=0).index.astype(str).str.strip())
 te = df[df["User"].isin(test_ids)].reset_index(drop=True)
 trall = df[~df["User"].isin(test_ids)].reset_index(drop=True)
 assert not (set(te["User"]) & set(trall["User"])), "train/test overlap"
@@ -100,8 +97,8 @@ def make_loader(frame, shuffle):
 train_dl, val_dl, test_dl = make_loader(tr, True), make_loader(va, False), make_loader(te, False)
 
 model = AutoModelForSequenceClassification.from_pretrained(
-    MODEL_NAME, num_labels=4, attn_implementation="eager").to(device)   # 'eager' avoids NaNs seen with SDPA attention + padding on Apple MPS
-opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01, foreach=False)   # foreach=False: safer on Apple MPS
+    MODEL_NAME, num_labels=4, attn_implementation="eager").to(device)
+opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01, foreach=False)
 total = EPOCHS * len(train_dl)
 sched = get_linear_schedule_with_warmup(opt, int(WARMUP * total), total)
 use_amp = device == "cuda"
@@ -120,7 +117,6 @@ def predict(dl):
         raise RuntimeError("NaN in model outputs - stop and check the device / attention setting.")
     return P
 
-# ---------------- training with best-epoch selection on the validation set ----------------
 best_f1, best_state, n_skipped = -1, None, 0
 for ep in range(1, EPOCHS + 1):
     model.train(); t0 = time.time(); run = 0
@@ -129,7 +125,7 @@ for ep in range(1, EPOCHS + 1):
         opt.zero_grad()
         with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=use_amp):
             loss = model(**b).loss
-        if not torch.isfinite(loss):                       # fail fast instead of wasting hours
+        if not torch.isfinite(loss):
             raise RuntimeError(f"Non-finite loss at epoch {ep}, step {step}: {loss.item()}")
         if ep == 1 and step <= 5:
             print(f"  step {step}: loss {loss.item():.4f}", flush=True)
@@ -137,7 +133,7 @@ for ep in range(1, EPOCHS + 1):
         gn = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0, foreach=False)
         if ep == 1 and step <= 5:
             print(f"  step {step}: grad norm {float(gn):.3f}", flush=True)
-        if not torch.isfinite(gn):                         # skip a bad update instead of corrupting the weights
+        if not torch.isfinite(gn):
             bad = [n for n, p in model.named_parameters() if p.grad is not None and not torch.isfinite(p.grad).all()]
             print(f"  WARNING: non-finite gradient at epoch {ep}, step {step}; skipped. First bad params: {bad[:3]}", flush=True)
             opt.zero_grad(); sched.step(); n_skipped += 1
@@ -153,10 +149,9 @@ for ep in range(1, EPOCHS + 1):
 model.load_state_dict(best_state)
 print(f"best validation macro-F1: {best_f1:.3f}")
 
-# ---------------- test ----------------
 proba = predict(test_dl)
 pred = proba.argmax(1)
-score = proba @ np.arange(4)            # expected risk level, a continuous score for Spearman / AUC
+score = proba @ np.arange(4)
 row = evaluate(f"{MODEL_NAME} (fine-tuned)", te["y"].values, pred=pred, score=score)
 row["best_val_macro_F1"] = round(best_f1, 3); row["epochs"] = EPOCHS; row["lr"] = LR; row["max_len"] = MAX_LEN
 pd.DataFrame([row]).to_csv(OUT_METRICS, index=False)

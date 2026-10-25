@@ -95,5 +95,4 @@ All bootstrap intervals use 2,000 resamples and seed 42.
 - Code: MIT (see `LICENSE`), except `code/type1owa_zhou.py`, which is a Python port of the GPL-licensed R package Type1OWA 1.0 and keeps the original licence terms.
 - Data and results: derived from a public dataset released under CC BY-NC 4.0, so the same non-commercial terms apply. Source dataset: see the paper.
 
-- Data and results: derived from the public dataset by Abdulgafer et al. (https://github.com/aabdulgafer/Synthetic-Gambling-Dataset), released under CC BY-NC 4.0. The same non-commercial terms apply (https://creativecommons.org/licenses/by-nc/4.0/).
-
+- Data and results: derived from the Synthetic Gambling Conversations Dataset (https://github.com/aabdulgafer/Synthetic-Gambling-Dataset), for which the authors recommend CC BY-NC 4.0. We apply the same non-commercial terms (https://creativecommons.org/licenses/by-nc/4.0/).

@@ -22,7 +22,7 @@ code/
   zero_shot_llm_run.py               zero-shot baseline: direct risk level from one LLM
   zero_shot_llm_aggregate.py         zero-shot baseline: evaluation and combinations
 data/
-  Source/                            source monologues
+  source/                            source monologues
   user_texts_concatenated.csv        all monologues of each user.
   user_labels_gt1.xlsx               GT1 label (risk_level) per user
   judge_scores_with_evidence_nine_criteria/   raw outputs of the five judges (scores and evidence spans)

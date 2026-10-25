@@ -19,11 +19,13 @@ from sklearn.metrics import f1_score, roc_curve
 from sklearn.model_selection import StratifiedKFold
 warnings.filterwarnings("ignore")
 
-USER_SCORES   = "data/judge_scores_nine_criteria.xlsx"
-PROFILES_FILE = "data/user_labels_gt1.csv"
-T1OWA_DIR     = "code"
-OUTPUT_FILE   = "results/exp1_3_results.xlsx"
+# paths (relative to the repository root) and settings
+USER_SCORES     = "data/judge_scores_nine_criteria.xlsx"
+PROFILES_FILE   = "data/user_labels_gt1.xlsx"
+T1OWA_DIR       = "code"
+OUTPUT_FILE     = "results/experiments_1_3.xlsx"
 
+# F3 vote threshold, minimum valid judges per criterion, Yager exponent, q grid, bootstrap, T1OWA grid
 PRESENT_THR  = 0.50
 MIN_JUDGES   = 2
 YAGER_Q      = 0.5
@@ -31,12 +33,15 @@ Q_GRID       = [0.25, 0.5, 0.75, 1.0]
 N_BOOT, SEED = 2000, 42
 GRID_STEP    = 101
 N_ALPHA      = 50
+
+# T1OWA implementation (alpha-cuts, centroid defuzzification)
 sys.path.insert(0, T1OWA_DIR)
 from type1owa_zhou import aggregate_triangular_t1owa
 domainX = np.round(np.linspace(0.0, 1.0, GRID_STEP), 2)
 alphas  = np.linspace(0.0, 1.0, N_ALPHA)
 GT1 = {"none": 0, "low": 1, "moderate": 2, "high": 3}
 
+# load judge scores (users x criteria x judges) and GT1 labels
 raw = pd.read_excel(USER_SCORES, index_col=0)
 raw.index = raw.index.astype(str).str.strip()
 pat = re.compile(r"^A([1-9])_(.+)$")
@@ -53,7 +58,7 @@ for k in range(9):
         if col in raw.columns:
             X[:, k, j] = pd.to_numeric(raw[col], errors="coerce").values
 
-prof = pd.read_csv(PROFILES_FILE)
+prof = pd.read_excel(PROFILES_FILE)
 idc = [c for c in prof.columns if c.lower() in ("user_id", "main_user", "user", "id")][0]
 prof[idc] = prof[idc].astype(str).str.strip()
 ymap = prof.set_index(idc)["risk_level"].astype(str).str.strip().str.lower().map(GT1)
@@ -62,6 +67,7 @@ keep = y.notna().values
 X, users, y = X[keep], raw.index[keep], y[keep].astype(int).values
 print(f"users with label: {len(users)} | label counts: {np.bincount(y).tolist()} | scores: {int(np.isfinite(X).sum())}")
 
+# Stage 1: fuse the judge scores per criterion (F1-F4); criteria with fewer than MIN_JUDGES valid scores are not assessed
 def fuse(Xs, strategy):
     n_valid = np.isfinite(Xs).sum(axis=2)
     assessed = n_valid >= MIN_JUDGES
@@ -78,11 +84,13 @@ def fuse(Xs, strategy):
     else: raise ValueError(strategy)
     return [np.where(assessed, o, 0.0) for o in out], assessed
 
+# Yager OWA weights from the quantifier Q(r) = r**q
 def yager_w(n, q):
     Q = lambda r: r ** q
     w = np.array([Q(i / n) - Q((i - 1) / n) for i in range(1, n + 1)])
     return w / w.sum()
 
+# Stage 2 with crisp values: mean or OWA over the assessed criteria
 def agg_crisp(vals, assessed, op, q=YAGER_Q):
     out = np.zeros(len(vals))
     for i in range(len(vals)):
@@ -91,6 +99,7 @@ def agg_crisp(vals, assessed, op, q=YAGER_Q):
         out[i] = v.mean() if op == "mean" else np.dot(yager_w(len(v), q), np.sort(v)[::-1])
     return out
 
+# Stage 2 with fuzzy values: T1OWA (equal or Yager weights), returns the centroid
 def agg_fuzzy(abc, assessed, op, q=YAGER_Q):
     a, b, c = abc
     out = np.zeros(len(a))
@@ -110,12 +119,14 @@ def agg_fuzzy(abc, assessed, op, q=YAGER_Q):
         out[i] = np.mean([p[1] for p in P]) if not np.isfinite(cen) else cen
     return out
 
+# fusion + aggregation for one pipeline
 def run(Xs, fusion, op, q=YAGER_Q):
     f, assessed = fuse(Xs, fusion)
     if fusion == "F4_fuzzy":
         return agg_fuzzy(tuple(f), assessed, "equal" if op == "mean" else "yager", q)
     return agg_crisp(f[0], assessed, op, q)
 
+# evaluation metrics and paired bootstrap (same resamples for every method)
 def auc(s, pos):
     pos = np.asarray(pos, bool); n1, n0 = pos.sum(), (~pos).sum()
     if n1 == 0 or n0 == 0: return np.nan
@@ -145,6 +156,7 @@ def table_row(name, s):
         row[mn] = fmt(fn(s, y), np.array([fn(s[b], y[b]) for b in BOOT]))
     return row
 
+# cross-validated cut-points (Youden) for macro-F1
 def youden(score, pos):
     fpr, tpr, thr = roc_curve(pos, score); k = np.argmax((tpr - fpr)[1:]) + 1; return thr[k]
 
@@ -155,6 +167,7 @@ def cv_macro_f1(s):
         P[te] = (s[te][:, None] >= cuts[None, :]).sum(1)
     return f1_score(y, P, labels=[0, 1, 2, 3], average="macro", zero_division=0)
 
+# paired bootstrap difference between two methods (* = interval excludes 0)
 def paired_diff(s1, s2, name):
     row = {"comparison": name}
     for mn in ("spearman", "kendall", "auc_none_vs_high", "auc_nonelow_vs_modhigh"):
@@ -164,6 +177,7 @@ def paired_diff(s1, s2, name):
         row[mn] = f"{d0:+.4f} [{lo:+.4f}, {hi:+.4f}]" + (" *" if lo > 0 or hi < 0 else "")
     return row
 
+# ---- Experiment 1 ----
 print("\nExperiment 1 - fusion strategies")
 FUS = ["F1_mean", "F2_median", "F3_majority", "F4_fuzzy"]
 S = {}
@@ -183,6 +197,7 @@ for op in ("mean", "owa"):
         pd1.append(paired_diff(S[(f1_, op)], S[(f2_, op)], f"{f1_} - {f2_} ({op})"))
 pd1 = pd.DataFrame(pd1)
 
+# fuzzy width and judge disagreement per user
 f4, assessed = fuse(X, "F4_fuzzy")
 width = np.where(assessed, f4[2] - f4[0], np.nan)
 sd = np.nanstd(X, axis=2)
@@ -193,6 +208,7 @@ wid = [{"quantity": "mean fuzzy width (c-a) per user", **{LV: round(float(np.nan
         "spearman_with_GT1": round(sp(np.nanmean(sd, 1), y), 3)}]
 wid = pd.DataFrame(wid)
 
+# pairwise judge agreement and single-judge references
 J = len(judges); agree = np.full((J, J), np.nan)
 for i in range(J):
     for j in range(J):
@@ -202,10 +218,11 @@ agree = pd.DataFrame(agree, index=judges, columns=judges).round(3)
 
 single = []
 for j, jd in enumerate(judges):
-    s = run(X[:, :, [j]], "F1_mean", "mean")
+    s = run(X[:, :, [j]], "F1_mean", "mean") 
     single.append(table_row(f"single judge: {jd} (mean)", s))
 single = pd.DataFrame(single)
 
+# ---- Experiment 2 ----
 print("\nExperiment 2 - aggregation operators (on the same fused criteria)")
 A1 = S[("F2_median", "mean")];  A2 = S[("F2_median", "owa")]
 A3 = S[("F4_fuzzy", "owa")];    A4 = S[("F4_fuzzy", "mean")]
@@ -218,12 +235,14 @@ pd2 = pd.DataFrame([paired_diff(ops[a], ops[b], f"{a}  -  {b}") for a, b in
                     [("A3 T1OWA Yager", "A1 mean (medians)"), ("A3 T1OWA Yager", "A2 crisp OWA (medians)"),
                      ("A3 T1OWA Yager", "A4 T1OWA equal"), ("A2 crisp OWA (medians)", "A1 mean (medians)")]])
 
+# check: equal-weight T1OWA vs fuzzy arithmetic mean
 a_, b_, c_ = f4
 fz_mean = np.array([np.mean(((a_ + b_ + c_) / 3)[i][assessed[i]]) if assessed[i].any() else 0 for i in range(len(y))])
 check = pd.DataFrame([{"max_abs_diff(T1OWA equal, fuzzy mean)": float(np.max(np.abs(A4 - fz_mean))),
                        "mean_abs_diff": float(np.mean(np.abs(A4 - fz_mean))),
                        "spearman(T1OWA equal, fuzzy mean)": float(spearmanr(A4, fz_mean)[0])}])
 
+# sensitivity to the Yager exponent q (q = 1 is equal weights)
 sens = []
 for q in Q_GRID:
     s_c = run(X, "F2_median", "owa", q); s_f = run(X, "F4_fuzzy", "owa", q)
@@ -232,6 +251,7 @@ for q in Q_GRID:
     print(f"  q={q}: crisp {sens[-1]['crisp OWA spearman']} | T1OWA {sens[-1]['T1OWA spearman']}")
 sens = pd.DataFrame(sens)
 
+# ---- Experiment 3 ----
 print("\nExperiment 3 - leave-one-judge-out")
 full = {"F1_mean": S[("F1_mean", "mean")], "F2_median": S[("F2_median", "mean")], "F3_majority": S[("F3_majority", "mean")], "F4_fuzzy (T1OWA Yager)": A3}
 loo = []
@@ -254,6 +274,7 @@ loo_range = loo[loo["removed judge"] != "(none: all judges)"].groupby("pipeline"
     auc_nh_min=("auc_none_vs_high", "min"), auc_nh_max=("auc_none_vs_high", "max"),
     rank_agreement_min=("rank_agreement_with_full (Spearman)", "min")).round(4).reset_index()
 
+# save all tables
 os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 with pd.ExcelWriter(OUTPUT_FILE) as w:
     exp1.to_excel(w, sheet_name="exp1_fusion", index=False)

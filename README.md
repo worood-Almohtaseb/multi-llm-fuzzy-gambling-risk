@@ -4,7 +4,7 @@ Data, results and code for the paper *"From Multi-LLM Judgments to Fuzzy Evidenc
 
 Five local LLM judges score nine DSM-5 gambling criteria (0–1) in the texts of 500 synthetic users. Stage 1 fuses the five judgments per criterion (mean, median, majority vote, triangular fuzzy set). Stage 2 aggregates the nine criteria into one user score (mean, crisp OWA, T1OWA with Yager weights, T1OWA with equal weights). The scores are compared with an external risk label (GT1) and with supervised and zero-shot baselines.
 
-The users and texts are synthetic. The scores measure criterion-level textual evidence; they are not diagnoses. GT1 is derived from the synthetic user profiles and was not validated by clinicians.
+The users and texts are synthetic. The scores measure criterion-level textual evidence; they are not diagnoses. GT1 comes from the synthetic user profiles and has not been validated by clinicians.
 
 ## Repository structure
 
@@ -23,10 +23,10 @@ code/
   zero_shot_llm_aggregate.py         zero-shot baseline: evaluation and combinations
 data/
   Source/                            source monologues
-  user_texts_concatenated.csv        all monologues of each user (columns main_user, Monologue, risk_level)
+  user_texts_concatenated.csv        all monologues of each user.
   user_labels_gt1.xlsx               GT1 label (risk_level) per user
   judge_scores_with_evidence_nine_criteria/   raw outputs of the five judges (scores and evidence spans)
-  judge_scores_nine_criteria.xlsx    scores of the five judges for the 500 scored users (also defines the test set)
+  judge_scores_nine_criteria.xlsx    scores of the five judges for the 500 scored users.
   zero_shot/                         direct_<model>.xlsx from the zero-shot baseline
 results/
   experiments_1_3.xlsx               Experiments 1-3
@@ -67,7 +67,7 @@ Run all commands from the repository root.
 python code/experiments_1_3.py
 ```
 
-It writes `results/experiments_1_3.xlsx`. Reference check: criterion median fusion with crisp OWA (F2 + A2) gives Spearman 0.292 [0.210, 0.372].
+It writes `results/experiments_1_3.xlsx`. Check: median fusion with crisp OWA (F2 + A2) gives Spearman 0.292 [0.210, 0.372].
 
 **Baselines:**
 
@@ -95,6 +95,5 @@ All bootstrap intervals use 2,000 resamples and seed 42.
 - Code: MIT (see `LICENSE`), except `code/type1owa_zhou.py`, which is a Python port of the GPL-licensed R package Type1OWA 1.0 and keeps the original licence terms.
 - Data and results: derived from a public dataset released under CC BY-NC 4.0, so the same non-commercial terms apply. Source dataset: see the paper.
 
-## Citation
+- Data and results: derived from the public dataset by Abdulgafer et al. (https://github.com/aabdulgafer/Synthetic-Gambling-Dataset), released under CC BY-NC 4.0. The same non-commercial terms apply (https://creativecommons.org/licenses/by-nc/4.0/).
 
-If you use this repository, please cite the paper (reference to be added after publication) and the archived release: DOI to be added (Zenodo).

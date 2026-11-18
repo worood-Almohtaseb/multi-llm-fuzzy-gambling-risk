@@ -1,10 +1,8 @@
-# Extra checks for the reviewer comments (3, 6, 8/16, 9). Run from the repository root:
 #   python code/reviewer_checks.py
-# It re-uses the functions of experiments_1_3.py (lines 1-146) and writes results/reviewer_checks.xlsx.
 import sys, time, numpy as np, pandas as pd
 src = open("code/experiments_1_3.py").read().split("\n")
 ns = {"__name__": "ec"}
-exec("\n".join(src[:146]), ns)                       # data, fusion, aggregation, metrics (no bootstrap tables)
+exec("\n".join(src[:146]), ns)                       
 X, y, assessed_fn = ns["X"], ns["y"], ns["fuse"]
 run, sp, auc_nh, auc_mh, yager_w = ns["run"], ns["sp"], ns["auc_nh"], ns["auc_mh"], ns["yager_w"]
 judges = ns["judges"]; print(judges, X.shape)
@@ -21,7 +19,7 @@ def pipelines(Xs):
 t0 = time.time(); S = pipelines(X); print("pipelines done", round(time.time() - t0), "s", flush=True)
 base = {k: round(sp(v, y), 3) for k, v in S.items()}; print(base)
 
-# ---- A. sample sensitivity: stratified bootstrap to the risk distribution of the full corpus (397/493/714/496) ----
+# ---- A. sample sensitivity: stratified bootstrap to the risk distribution of the full corpus ----
 corpus = np.array([397, 493, 714, 496]); size = np.round(500 * corpus / corpus.sum()).astype(int); size[2] += 500 - size.sum()
 rng = np.random.default_rng(42); idx = [np.where(y == h)[0] for h in range(4)]
 B = np.array([np.concatenate([rng.choice(idx[h], size[h], replace=True) for h in range(4)]) for _ in range(2000)])
@@ -54,7 +52,7 @@ out["B_offscale"] = pd.DataFrame([{"method": k, "original": base[k], "off-scale 
         "max_abs_change": round(max(abs(sp(Sa[k], y) - sp(S[k], y)), abs(sp(Sb[k], y) - sp(S[k], y))), 4)} for k in S])
 print(out["B_offscale"].to_string(index=False), flush=True)
 
-# ---- D/E. aggregated T1OWA sets: width against crisp OWA of the minimum and maximum; finer grid ----
+# ----  aggregated T1OWA sets: width against crisp OWA of the minimum and maximum; finer grid ----
 a_, b_, c_ = [np.asarray(z) for z in assessed_fn(X, "F4_fuzzy")[0]]; asm = assessed_fn(X, "F4_fuzzy")[1]
 agg = ns["aggregate_triangular_t1owa"]
 def t1(grid, nal, weights_kind, dec):

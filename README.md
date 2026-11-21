@@ -67,8 +67,7 @@ The judge and zero-shot runs need [Ollama](https://ollama.com) with the models a
 
 The implementation of the type-1 OWA (T1OWA) operator is not included in this repository. The operator follows the alpha-level approach of Zhou et al.:
 
-Zhou, S.M.; Chiclana, F.; John, R.I.; Garibaldi, J.M. Alpha-level aggregation: a practical approach to type-1 OWA operation for aggregating uncertain information with applications to breast cancer treatments. IEEE Trans. Knowl. Data Eng. 2011, 23, 1455–1468. https://doi.org/10.1109/TKDE.2010.191  
-
+Zhou, S. M., Chiclana, F., John, R. I., & Garibaldi, J. M. (2010). Alpha-level aggregation: a practical approach to type-1 OWA operation for aggregating uncertain information with applications to breast cancer treatments. IEEE Transactions on Knowledge and Data Engineering, 23(10), 1455-1468.
 The authors of that paper can be contacted for details on the implementation.
 
 **Scripts that need it:** `experiments_1_3.py`,and `revision_analyses.py`. Import `aggregate_triangular_t1owa` from a module named `type1owa_zhou.py`, which must be placed in `code/`. Without it these scripts stop at the import.
